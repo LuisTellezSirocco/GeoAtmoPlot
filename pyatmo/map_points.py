@@ -1,9 +1,12 @@
 import os
+from collections import defaultdict
+from typing import Dict, List, Tuple
+
 import folium
-import simplekml
 import numpy as np
 import pandas as pd
-from typing import List, Tuple, Dict
+import simplekml
+
 
 class GridPointSelector:
     def __init__(
@@ -48,21 +51,32 @@ class MapGenerator:
         n_points: int = 4,
         filename: str = "closest_points_map.html",
         path_file: str = None,
-        models: List[str] = ["ECMWF", "GFS"],
+        models: List[str] = ["ECMWF", "GFS_0.5"],
     ):
         closest_points = {
             model: self.model_selectors[model].select_closest_points(latitude, longitude, n_points)
             for model in models
         }
-        common_points = set.intersection(*[set(points) for points in closest_points.values()])
 
         m = folium.Map(location=[latitude, longitude], zoom_start=6)
 
-        colors = self._get_color_map()
+        # Agrupar puntos coincidentes
+        point_groups = defaultdict(list)
         for model, points in closest_points.items():
-            self._add_markers(m, points, common_points, colors[model], model)
+            for point in points:
+                point_groups[point].append(model)
+
+        colors = self._get_color_map()
         
-        self._add_markers(m, common_points, set(), colors["COMMON"], "COMMON")
+        # Crear marcadores para cada grupo de puntos
+        for point, models_list in point_groups.items():
+            popup_text = "<br>".join([f"{model}: ({point[0]:.2f}, {point[1]:.2f})" for model in models_list])
+            folium.Marker(
+                location=[point[0], point[1]],
+                popup=folium.Popup(popup_text, max_width=300),
+                icon=folium.Icon(color=self._get_group_color(models_list, colors))
+            ).add_to(m)
+
         folium.Marker(location=[latitude, longitude], popup="POINT").add_to(m)
 
         filename = self._get_full_path(filename, path_file, "html")
@@ -75,23 +89,46 @@ class MapGenerator:
         n_points: int = 4,
         filename: str = "closest_points_map.kml",
         path_file: str = None,
-        models: List[str] = ["ECMWF", "GFS"],
+        models: List[str] = ["ECMWF", "GFS_0.5"],
     ):
         closest_points = {
             model: self.model_selectors[model].select_closest_points(latitude, longitude, n_points)
             for model in models
         }
-        common_points = set.intersection(*[set(points) for points in closest_points.values()])
 
-        data = self._prepare_kml_data(closest_points, common_points, latitude, longitude)
-        color_map = self._get_color_map()
+        # Agrupar puntos coincidentes
+        point_groups = defaultdict(list)
+        for model, points in closest_points.items():
+            for point in points:
+                point_groups[point].append(model)
 
         kml = simplekml.Kml()
-        self._add_kml_placemarks(kml, data, color_map)
+        color_map = self._get_color_map()
+
+        for point, models_list in point_groups.items():
+            description = ", ".join(models_list)
+            placemark = kml.newpoint(name=f"({point[0]:.2f}, {point[1]:.2f})", coords=[(point[1], point[0])])
+            placemark.description = description
+            placemark.style.iconstyle.color = simplekml.Color.rgb(*self._get_kml_color(models_list, color_map))
+
+        # Punto objetivo
+        kml.newpoint(name="OBJECTIVE", coords=[(longitude, latitude)])
 
         filename = self._get_full_path(filename, path_file, "kml")
         kml.save(filename)
 
+    @staticmethod
+    def _get_group_color(models, color_map):
+        if len(models) == 1:
+            return color_map[models[0]]
+        return "purple"  # Color para puntos que coinciden en múltiples modelos
+    
+    @staticmethod
+    def _get_kml_color(models, color_map):
+        if len(models) == 1:
+            return [int(x) for x in bytes.fromhex(color_map[models[0]][1:])]
+        return [128, 0, 128]  # Purple for multiple models
+    
     @staticmethod
     def _add_markers(m, points, common_points, color, label):
         for point in points:
