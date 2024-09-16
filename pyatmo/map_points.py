@@ -3,8 +3,7 @@ import folium
 import simplekml
 import numpy as np
 import pandas as pd
-from typing import List, Tuple
-
+from typing import List, Tuple, Dict
 
 class GridPointSelector:
     def __init__(
@@ -27,11 +26,20 @@ class GridPointSelector:
         closest_indices = np.argsort(distances)[:n_points]
         return [self.points[i] for i in closest_indices]
 
-
 class MapGenerator:
     def __init__(self):
-        self.ecmwf_selector = GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.1)
-        self.gfs_selector = GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.5)
+        # TODO: Garantizar que los modelos y resolución sean correctos
+        self.model_selectors = {
+            "ECMWF": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.1),
+            "GFS_0.5": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.5),
+            "GFS_0.25": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.25),
+            "UKMET": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.2),
+            "NCEP": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.25),
+            "DWD": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.1),
+            "METEOFRANCE": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.1),
+            "CMCC": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.25),
+            "JMA": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.2),
+        }
 
     def create_map(
         self,
@@ -40,30 +48,21 @@ class MapGenerator:
         n_points: int = 4,
         filename: str = "closest_points_map.html",
         path_file: str = None,
-        ecmwf: bool = True,
-        gfs: bool = True,
+        models: List[str] = ["ECMWF", "GFS"],
     ):
-        closest_points_gfs = (
-            self.gfs_selector.select_closest_points(latitude, longitude, n_points)
-            if gfs
-            else []
-        )
-        closest_points_ecmwf = (
-            self.ecmwf_selector.select_closest_points(latitude, longitude, n_points)
-            if ecmwf
-            else []
-        )
-        common_points = list(
-            set(closest_points_gfs).intersection(set(closest_points_ecmwf))
-        )
+        closest_points = {
+            model: self.model_selectors[model].select_closest_points(latitude, longitude, n_points)
+            for model in models
+        }
+        common_points = set.intersection(*[set(points) for points in closest_points.values()])
 
         m = folium.Map(location=[latitude, longitude], zoom_start=6)
 
-        if gfs:
-            self._add_markers(m, closest_points_gfs, common_points, "red", "GFS")
-        if ecmwf:
-            self._add_markers(m, closest_points_ecmwf, common_points, "green", "ECMWF")
-        self._add_markers(m, common_points, [], "orange", "COMMON")
+        colors = self._get_color_map()
+        for model, points in closest_points.items():
+            self._add_markers(m, points, common_points, colors[model], model)
+        
+        self._add_markers(m, common_points, set(), colors["COMMON"], "COMMON")
         folium.Marker(location=[latitude, longitude], popup="POINT").add_to(m)
 
         filename = self._get_full_path(filename, path_file, "html")
@@ -76,31 +75,15 @@ class MapGenerator:
         n_points: int = 4,
         filename: str = "closest_points_map.kml",
         path_file: str = None,
-        ecmwf: bool = True,
-        gfs: bool = True,
+        models: List[str] = ["ECMWF", "GFS"],
     ):
-        closest_points_gfs = (
-            self.gfs_selector.select_closest_points(latitude, longitude, n_points)
-            if gfs
-            else []
-        )
-        closest_points_ecmwf = (
-            self.ecmwf_selector.select_closest_points(latitude, longitude, n_points)
-            if ecmwf
-            else []
-        )
-        common_points = list(
-            set(closest_points_gfs).intersection(set(closest_points_ecmwf))
-        )
+        closest_points = {
+            model: self.model_selectors[model].select_closest_points(latitude, longitude, n_points)
+            for model in models
+        }
+        common_points = set.intersection(*[set(points) for points in closest_points.values()])
 
-        closest_points_gfs = [x for x in closest_points_gfs if x not in common_points]
-        closest_points_ecmwf = [
-            x for x in closest_points_ecmwf if x not in common_points
-        ]
-
-        data = self._prepare_kml_data(
-            closest_points_gfs, closest_points_ecmwf, common_points, latitude, longitude
-        )
+        data = self._prepare_kml_data(closest_points, common_points, latitude, longitude)
         color_map = self._get_color_map()
 
         kml = simplekml.Kml()
@@ -108,20 +91,6 @@ class MapGenerator:
 
         filename = self._get_full_path(filename, path_file, "kml")
         kml.save(filename)
-
-    @staticmethod
-    def _get_full_path(filename, path_file, extension):
-        if path_file is not None:
-            if filename is None:
-                filename = f"closest_points_map.{extension}"
-            elif not filename.lower().endswith(f".{extension}"):
-                filename = f"{filename}.{extension}"
-            return os.path.join(path_file, filename)
-        return (
-            filename
-            if filename.lower().endswith(f".{extension}")
-            else f"{filename}.{extension}"
-        )
 
     @staticmethod
     def _add_markers(m, points, common_points, color, label):
@@ -135,30 +104,32 @@ class MapGenerator:
             ).add_to(m)
 
     @staticmethod
-    def _prepare_kml_data(gfs_points, ecmwf_points, common_points, latitude, longitude):
-        data = pd.DataFrame(
-            {
-                "COORDS": gfs_points
-                + ecmwf_points
-                + common_points
-                + [(latitude, longitude)],
-                "TYPE": ["GFS"] * len(gfs_points)
-                + ["ECMWF"] * len(ecmwf_points)
-                + ["COMMON"] * len(common_points)
-                + ["OBJECTIVE"],
-            }
-        )
-        data["LAT"] = data["COORDS"].apply(lambda x: x[0])
-        data["LON"] = data["COORDS"].apply(lambda x: x[1])
-        return data
+    def _prepare_kml_data(closest_points, common_points, latitude, longitude):
+        data = []
+        for model, points in closest_points.items():
+            data.extend([(point, model) for point in points if point not in common_points])
+        data.extend([(point, "COMMON") for point in common_points])
+        data.append(((latitude, longitude), "OBJECTIVE"))
+
+        df = pd.DataFrame(data, columns=["COORDS", "TYPE"])
+        df["LAT"] = df["COORDS"].apply(lambda x: x[0])
+        df["LON"] = df["COORDS"].apply(lambda x: x[1])
+        return df
 
     @staticmethod
     def _get_color_map():
         return {
-            "GFS": (255, 0, 0),  # Red
-            "ECMWF": (0, 255, 0),  # Green
-            "COMMON": (0, 0, 255),  # Blue
-            "OBJECTIVE": (255, 255, 0),  # Yellow
+            "GFS_0.5": "red",
+            "GFS_0.25": "darkred",
+            "ECMWF": "green",
+            "UKMET": "blue",
+            "NCEP": "purple",
+            "DWD": "orange",
+            "METEOFRANCE": "darkred",
+            "CMCC": "darkgreen",
+            "JMA": "darkblue",
+            "COMMON": "cadetblue",
+            "OBJECTIVE": "black",
         }
 
     @staticmethod
@@ -169,7 +140,7 @@ class MapGenerator:
             )
             placemark.style.labelstyle.color = simplekml.Color.red
             placemark.style.iconstyle.color = simplekml.Color.rgb(
-                *color_map[row["TYPE"]]
+                *[int(x) for x in bytes.fromhex(color_map[row["TYPE"]][1:])]
             )
 
     @staticmethod
@@ -186,20 +157,17 @@ class MapGenerator:
             else f"{filename}.{extension}"
         )
 
-
 def create_map(
     latitude: float,
     longitude: float,
     n_points: int = 4,
     filename: str = "closest_points_map.html",
     path_file: str = None,
-    ecmwf: bool = True,
-    gfs: bool = True,
+    models: List[str] = ["ECMWF", "GFS_0.5", "GFS_0.25"],
 ):
     MapGenerator().create_map(
-        latitude, longitude, n_points, filename, path_file, ecmwf, gfs
+        latitude, longitude, n_points, filename, path_file, models
     )
-
 
 def create_map_kml(
     latitude: float,
@@ -207,9 +175,9 @@ def create_map_kml(
     n_points: int = 4,
     filename: str = "closest_points_map.kml",
     path_file: str = None,
-    ecmwf: bool = True,
-    gfs: bool = True,
+    models: List[str] = ["ECMWF", "GFS_0.5", "GFS_0.25"],
 ):
     MapGenerator().create_map_kml(
-        latitude, longitude, n_points, filename, path_file, ecmwf, gfs
+        latitude, longitude, n_points, filename, path_file, models
     )
+

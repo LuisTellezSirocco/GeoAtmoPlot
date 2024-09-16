@@ -14,12 +14,13 @@ class KMZGenerator:
 
     def _set_window_position(self):
         window_width = 400
-        window_height = 450
+        window_height = 600  # Aumentado a 600 para asegurar que haya espacio suficiente
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.root.geometry(f'{window_width}x{window_height}+{x}+{y}')
+
 
     def _set_style(self):
         self.style = ttk.Style()
@@ -41,21 +42,27 @@ class KMZGenerator:
         self._create_input_field(main_frame, 'Latitud:')
         self._create_input_field(main_frame, 'Longitud:')
 
-        # Opciones adicionales
-        options_frame = ttk.Frame(main_frame, style='TFrame')
-        options_frame.pack(fill='x', pady=(10, 0))
+        # Modelos disponibles
+        models_frame = ttk.LabelFrame(main_frame, text="Modelos", style='TFrame')
+        models_frame.pack(fill='x', pady=(10, 0))
 
-        self.ecmwf_var = tk.BooleanVar(value=True)
-        self.gfs_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="ECMWF", variable=self.ecmwf_var).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Checkbutton(options_frame, text="GFS", variable=self.gfs_var).pack(side=tk.LEFT)
+        self.model_vars = {}
+        models = ["ECMWF", "GFS_0.5", "GFS_0.25", "UKMET", "NCEP", "DWD", "METEOFRANCE", "CMCC", "JMA"]
+        for i, model in enumerate(models):
+            var = tk.BooleanVar(value=model in ["ECMWF", "GFS_0.5"])
+            ttk.Checkbutton(models_frame, text=model, variable=var).grid(row=i//3, column=i%3, sticky='w', padx=5, pady=2)
+            self.model_vars[model] = var
 
-        ttk.Label(options_frame, text="Número de puntos:").pack(side=tk.LEFT, padx=(20, 5))
+        # Número de puntos
+        points_frame = ttk.Frame(main_frame, style='TFrame')
+        points_frame.pack(fill='x', pady=(10, 0))
+        ttk.Label(points_frame, text="Número de puntos:").pack(side=tk.LEFT, padx=(0, 5))
         self.points_var = tk.StringVar(value="4")
-        ttk.Spinbox(options_frame, from_=1, to=10, textvariable=self.points_var, width=5).pack(side=tk.LEFT)
+        ttk.Spinbox(points_frame, from_=1, to=10, textvariable=self.points_var, width=5).pack(side=tk.LEFT)
         
+        # Botones
         button_frame = ttk.Frame(main_frame, style='TFrame')
-        button_frame.pack(pady=(20, 0))
+        button_frame.pack(pady=(20, 0), fill='x')
 
         self._create_button(button_frame, 'Generar KML', self.generate_kml)
         self._create_button(button_frame, 'Generar HTML', self.generate_html)
@@ -67,8 +74,8 @@ class KMZGenerator:
         setattr(self, label_text.lower().replace(' ', '_').replace(':', ''), entry)
 
     def _create_button(self, parent, text, command):
-        ttk.Button(parent, text=text, command=command, width=15).pack(side=tk.LEFT, padx=5, pady=5)
-
+        ttk.Button(parent, text=text, command=command, width=15).pack(side=tk.LEFT, padx=5, pady=5, expand=True)
+    
     def run(self):
         self.root.mainloop()
         
@@ -76,20 +83,19 @@ class KMZGenerator:
         asset_name = self.nombre_del_asset.get().strip()
         if not asset_name:
             messagebox.showerror('Error', 'Introduce un nombre de asset válido.')
-            return None, None, None, None, None, None
+            return None, None, None, None, None
         try:
             lat = float(self.latitud.get())
             lon = float(self.longitud.get())
-            ecmwf = self.ecmwf_var.get()
-            gfs = self.gfs_var.get()
+            models = [model for model, var in self.model_vars.items() if var.get()]
             n_points = int(self.points_var.get())
-            return asset_name, lat, lon, ecmwf, gfs, n_points
+            return asset_name, lat, lon, models, n_points
         except ValueError:
             messagebox.showerror('Error', 'Introduce valores válidos para latitud, longitud y número de puntos.')
-            return None, None, None, None, None, None
+            return None, None, None, None, None
 
     def _generate_file(self, file_type, create_function):
-        asset_name, lat, lon, ecmwf, gfs, n_points = self._get_input_values()
+        asset_name, lat, lon, models, n_points = self._get_input_values()
         if not asset_name:
             return
 
@@ -110,7 +116,7 @@ class KMZGenerator:
             if not overwrite:
                 return
         
-        create_function(lat, lon, n_points, asset_name, os.path.dirname(file_path), ecmwf=ecmwf, gfs=gfs)
+        create_function(lat, lon, n_points, asset_name, os.path.dirname(file_path), models=models)
         
         messagebox.showinfo('Éxito', f'{file_type.upper()} generado en {file_path}')
 
