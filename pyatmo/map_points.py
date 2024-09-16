@@ -160,7 +160,7 @@ class MapGenerator:
             "GFS_0.25": "darkred",
             "ECMWF": "green",
             "UKMET": "blue",
-            "NCEP": "purple",
+            "NCEP": "orange",
             "DWD": "orange",
             "METEOFRANCE": "darkred",
             "CMCC": "darkgreen",
