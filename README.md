@@ -4,9 +4,17 @@
 
 This application is a powerful and easy-to-use tool for generating KML and HTML files that show the nearest grid points of various global meteorological models for a specific location. It is ideal for meteorologists, researchers, and weather enthusiasts who need to visualize and compare different meteorological models.
 
+## Technical Description
+
+The core functionality of the application is implemented in the [`kmz_generator.py`](pyatmo/kmz_generator.py) script. This script handles the generation of KML and HTML files by processing the input data and interfacing with various meteorological models to retrieve the nearest grid points. The graphical interface allows users to input location data, select models, and generate the desired output files.
+
 ## How to Use the Application
 
 1. **Start the application**: Run the main script to open the graphical interface.
+
+    ```sh
+    python pyatmo/kmz_generator.py
+    ```
 
 2. **Enter data**:
    - Asset name: Enter a name to identify your location.
@@ -54,4 +62,3 @@ This application is a powerful and easy-to-use tool for generating KML and HTML 
 ---
 
 > This roadmap is subject to change based on user feedback and emerging needs.
-
