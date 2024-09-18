@@ -132,6 +132,7 @@ dmypy.json
 *log*
 *.out
 
+local
 Notebooks/plots
 **/*.html
 **/*.png
