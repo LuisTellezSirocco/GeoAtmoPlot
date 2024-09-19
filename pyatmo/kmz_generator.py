@@ -54,8 +54,17 @@ class KMZGenerator:
         team_combo.bind("<<ComboboxSelected>>", self._update_models)
 
         self._create_input_field(main_frame, 'Nombre del asset:')
-        self._create_input_field(main_frame, 'Latitud:')
-        self._create_input_field(main_frame, 'Longitud:')
+        
+        # Crear etiquetas de latitud y longitud con nombres de atributos
+        self.latitud_label = ttk.Label(main_frame, text="Latitud:")
+        self.latitud_label.pack(anchor='w', pady=(10, 0))
+        self.latitud = ttk.Entry(main_frame, width=40)
+        self.latitud.pack(fill='x', pady=(5, 10))
+
+        self.longitud_label = ttk.Label(main_frame, text="Longitud:")
+        self.longitud_label.pack(anchor='w', pady=(10, 0))
+        self.longitud = ttk.Entry(main_frame, width=40)
+        self.longitud.pack(fill='x', pady=(5, 10))
 
         # Modelos disponibles
         self.models_frame = ttk.LabelFrame(main_frame, text="Modelos", style='TFrame')
@@ -83,6 +92,9 @@ class KMZGenerator:
         logger.info(f"Updating models for team: {selected_team}")
         models = self._get_models_for_team(selected_team)
 
+        # Actualizar etiquetas de latitud y longitud
+        self._update_lat_lon_labels(selected_team)
+
         # Limpiar modelos existentes
         for widget in self.models_frame.winfo_children():
             widget.destroy()
@@ -92,6 +104,17 @@ class KMZGenerator:
             var = tk.BooleanVar(value=model in ["ECMWF", "GFS_0.5"])
             ttk.Checkbutton(self.models_frame, text=model, variable=var).grid(row=i//3, column=i%3, sticky='w', padx=5, pady=2)
             self.model_vars[model] = var
+    
+    def _update_lat_lon_labels(self, team):
+        if team == "NEBBO":
+            self.latitud_label.config(text="Latitud (-90 a 90):")
+            self.longitud_label.config(text="Longitud (0 a 360):")
+        elif team == "SIROCCO":
+            self.latitud_label.config(text="Latitud (-90 a 90):")
+            self.longitud_label.config(text="Longitud (-180 a 180):")
+        else:
+            self.latitud_label.config(text="Latitud:")
+            self.longitud_label.config(text="Longitud:")
 
     def _get_models_for_team(self, team):
         logger.info(f"Getting models for team: {team}")
