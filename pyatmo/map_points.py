@@ -288,4 +288,3 @@ def create_map_kml(
     MapGenerator(team).create_map_kml(
         latitude, longitude, n_points, filename, path_file, models
     )
-
