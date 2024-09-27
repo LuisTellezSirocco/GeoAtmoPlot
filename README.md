@@ -31,6 +31,21 @@ The core functionality of the application is implemented in the [`kmz_generator.
 
 6. **Save file**: Choose a location on your computer to save the generated file.
 
+## Supported Models
+
+The application supports the following meteorological models:
+
+- ECMWF
+- GFS_0.5
+- GFS_0.25
+- UKMET
+- NCEP
+- DWD
+- METEOFRANCE
+- CMCC
+- JMA
+- ICON
+
 ## Advantages
 
 1. **Multiple models**: Allows you to compare grid points from various global meteorological models on a single map.
