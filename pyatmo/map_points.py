@@ -67,6 +67,7 @@ class MapGenerator:
                 "METEOFRANCE": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.1),
                 "CMCC": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.25),
                 "JMA": GridPointSelector((-90.0, 90.0), (-180.0, 180.0), 0.2),
+                "ICON": GridPointSelector((29.5, 70.5), (336.5, 62.5), 0.0625),
                 **common_models,
             }
         elif self.team == "NEBBO":
@@ -222,6 +223,7 @@ class MapGenerator:
             "METEOFRANCE": "darkred",
             "CMCC": "darkgreen",
             "JMA": "darkblue",
+            "ICON": "purple",
             "COMMON": "cadetblue",
             "OBJECTIVE": "black",
         }

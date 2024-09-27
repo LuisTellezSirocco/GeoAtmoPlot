@@ -119,7 +119,7 @@ class KMZGenerator:
     def _get_models_for_team(self, team):
         logger.info(f"Getting models for team: {team}")
         if team == "SIROCCO":
-            return ["ECMWF", "GFS_0.5", "GFS_0.25", "UKMET", "NCEP", "DWD", "METEOFRANCE", "CMCC", "JMA"]
+            return ["ECMWF", "GFS_0.5", "GFS_0.25", "UKMET", "NCEP", "DWD", "METEOFRANCE", "CMCC", "JMA", "ICON"]
         elif team == "NEBBO":
             return ["ECMWF", "GFS_0.5", "GFS_0.25", "UKMET", "NCEP", "DWD", "METEOFRANCE", "CMCC", "JMA", "ECCC"]  # Añadir más modelos si es necesario
 
