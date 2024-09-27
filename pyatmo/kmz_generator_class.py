@@ -151,11 +151,20 @@ class KMZGenerator:
             models = [model for model, var in self.model_vars.items() if var.get()]
             n_points = int(self.points_var.get())
             team = self.team_var.get()
+
+            # Validate coordinates based on team
+            if team == "SIROCCO":
+                if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                    raise ValueError("Coordinates out of range for team SIROCCO")
+            elif team == "NEBBO":
+                if not (-90 <= lat <= 90) or not (0 <= lon <= 360):
+                    raise ValueError("Coordinates out of range for team NEBBO")
+
             logger.info(f"Input values: asset_name={asset_name}, lat={lat}, lon={lon}, models={models}, n_points={n_points}, team={team}")
             return asset_name, lat, lon, models, n_points, team
-        except ValueError:
-            logger.error("Invalid input values for latitude, longitude, or number of points")
-            messagebox.showerror('Error', 'Introduce valores válidos para latitud, longitud y número de puntos.')
+        except ValueError as e:
+            logger.error(f"Invalid input values: {e}")
+            messagebox.showerror('Error', f'Introduce valores válidos para latitud, longitud y número de puntos. {e}')
             return None, None, None, None, None, None
 
     def _generate_file(self, file_type, create_function):
